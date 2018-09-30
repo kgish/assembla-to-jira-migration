@@ -250,8 +250,13 @@ def create_ticket_jira(ticket, counter, total)
     payload[:fields]["#{@customfield_name_to_id['Story Points']}".to_sym] = story_points.to_i
   when 'sub-task'
     parent_issue = get_parent_issue(ticket)
-    payload[:fields][:parent] = {}
-    payload[:fields][:parent][:id] = parent_issue ? parent_issue[:jira_ticket_id] : nil
+    if parent_issue.nil?
+      payload[:fields][:issuetype][:id] = @issue_type_name_to_id['task']
+      puts "No parent found for SUB-TASK ticket_number='#{ticket_number}' => changed issue type to TASK"
+    else
+      payload[:fields][:parent] = {}
+      payload[:fields][:parent][:id] = parent_issue[:jira_ticket_id]
+    end
   end
 
   jira_ticket_id = nil
