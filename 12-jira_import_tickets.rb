@@ -221,72 +221,69 @@ def create_ticket_jira(ticket, counter, total)
 
   issue_type = get_issue_type(ticket)
 
-  payload = {
-    'create': {},
-    'fields': {
-      'project': { 'id': project_id },
-      'summary': summary,
-      'issuetype': { 'id': issue_type[:id] },
-      # 'reporter': { 'name': reporter_name },
-      'reporter': { 'id': jira_reporter_id },
-      # 'assignee': { 'name': assignee_name },
-      'assignee': { 'id': jira_assignee_id },
-      'priority': { 'name': priority_name },
-      # IMPORTANT: You might have to comment out the following line to get things working.
-      'labels': labels,
-      'description': description,
+  fields = {
+    project: { 'id': project_id },
+    summary: summary,
+    issuetype: { 'id': issue_type[:id] },
+    # reporter: { 'name': reporter_name },
+    reporter: { 'id': jira_reporter_id },
+    # assignee: { 'name': assignee_name },
+    assignee: { 'id': jira_assignee_id },
+    priority: { 'name': priority_name },
+    # IMPORTANT: You might have to comment out the following line to get things working.
+    labels: labels,
+    description: description,
 
-      # IMPORTANT: The following custom fields MUST be on the create issue screen for this project
-      #  Admin > Issues > Screens > Configure screen > 'PROJECT_KEY: Scrum Default Issue Screen'
-      # Assembla
+    # IMPORTANT: The following custom fields MUST be on the create issue screen for this project
+    #  Admin > Issues > Screens > Configure screen > 'PROJECT_KEY: Scrum Default Issue Screen'
+    # Assembla
 
-      "#{@customfield_name_to_id['Assembla-Id']}": ticket_number,
-      "#{@customfield_name_to_id['Assembla-Created-On']}": date_format_datetime(created_on),
-      "#{@customfield_name_to_id['Assembla-Due-Date']}": date_format_datetime(due_date),
-      "#{@customfield_name_to_id['Assembla-Reporter']}": reporter_name,
-      "#{@customfield_name_to_id['Assembla-Assignee']}": assignee_name,
-      "#{@customfield_name_to_id['Assembla-Status']}": status_name,
-      "#{@customfield_name_to_id['Assembla-Milestone']}": @nr_milestones.nonzero? ? milestone[:name] : nil,
-      "#{@customfield_name_to_id['Assembla-Completed']}": date_format_datetime(completed_date)
-    }
+    'Assembla-Id' => ticket_number,
+    'Assembla-Created-On' => date_format_datetime(created_on),
+    'Assembla-Due-Date' => date_format_datetime(due_date),
+    'Assembla-Reporter' => reporter_name,
+    'Assembla-Assignee' => assignee_name,
+    'Assembla-Status' => status_name,
+    'Assembla-Milestone' => @nr_milestones.nonzero? ? milestone[:name] : nil,
+    'Assembla-Completed' => date_format_datetime(completed_date)
   }
 
   # Assembla-Estimate => 0=None, 1=Small, 3=Medium, 7=Large
   jira_size = assembla_estimate_to_jira_size(estimate)
-  payload[:fields]["#{@customfield_name_to_id['Assembla-Estimate']}".to_sym] = jira_size
+  fields['Assembla-Estimate'] = jira_size
 
   # Assembla-Worked => hrs
   if assembla_worked.to_i != 0
-    payload[:fields]["#{@customfield_name_to_id['Assembla-Worked']}".to_sym] = assembla_worked
+    fields['Assembla-Worked'] = assembla_worked
   end
 
   # Assembla-Remaining => hrs
   if assembla_remaining.to_i != 0
-    payload[:fields]["#{@customfield_name_to_id['Assembla-Remaining']}".to_sym] = assembla_remaining
+    fields['Assembla-Remaining'] = assembla_remaining
   end
 
   if JIRA_SERVER_TYPE == 'hosted'
-    payload[:fields]["#{@customfield_name_to_id['Rank']}".to_sym] = story_rank
+    fields['Rank'] = story_rank
   end
 
   # Reporter is required
   if @is_not_a_user.include?(reporter_name)
     warning("Reporter name='#{reporter_name}' is not a user => RESET '#{JIRA_API_UNKNOWN_USER}'")
-    # payload[:fields][:reporter][:name] = JIRA_API_UNKNOWN_USER
-    payload[:fields][:reporter][:id] = JIRA_API_LEAD_ACCOUNT_ID
+    # fields[:reporter][:name] = JIRA_API_UNKNOWN_USER
+    fields[:reporter][:id] = JIRA_API_LEAD_ACCOUNT_ID
   elsif @inactive_jira_users.include?(reporter_name)
     warning("Reporter name='#{reporter_name}' is inactive => RESET '#{JIRA_API_UNKNOWN_USER}'")
-    # payload[:fields][:reporter][:name] = JIRA_API_UNKNOWN_USER
-    payload[:fields][:reporter][:id] = JIRA_API_LEAD_ACCOUNT_ID
+    # fields[:reporter][:name] = JIRA_API_UNKNOWN_USER
+    fields[:reporter][:id] = JIRA_API_LEAD_ACCOUNT_ID
   end
 
   # Verify assignee
   if @cannot_be_assigned_issues.include?(assignee_name)
     warning("Assignee name='#{assignee_name}' cannot be assigned issues => REMOVE") unless assignee_name.nil? || assignee_name.length.zero?
-    payload[:fields][:assignee][:id] = JIRA_API_LEAD_ACCOUNT_ID
+    fields[:assignee][:id] = JIRA_API_LEAD_ACCOUNT_ID
   elsif @inactive_jira_users.include?(assignee_name)
     warning("Assignee name='#{assignee_name}' is inactive => REMOVE")
-    payload[:fields][:assignee][:id] = JIRA_API_LEAD_ACCOUNT_ID
+    fields[:assignee][:id] = JIRA_API_LEAD_ACCOUNT_ID
   end
 
   # --- Custom fields Assembla --- #
@@ -308,8 +305,7 @@ def create_ticket_jira(ticket, counter, total)
     if %w[List Checkbox].include?(type)
       id = jira_get_list_option_id(k, v)
       if id
-        payload[:fields]["#{@customfield_name_to_id[k]}".to_sym] = {}
-        payload[:fields]["#{@customfield_name_to_id[k]}".to_sym][:id] = id
+        fields[k] = { id: id }
       else
         warning("Unknown custom field type='#{type}' title='#{k}', value='#{value}' => SKIP")
         next
@@ -321,8 +317,7 @@ def create_ticket_jira(ticket, counter, total)
       elsif @inactive_jira_users.include?(user_name)
         warning("Inactive jira user='#{user_name}' for 'Team List' field title='#{k}' => SKIP")
       else
-        payload[:fields]["#{@customfield_name_to_id[k]}".to_sym] = {}
-        payload[:fields]["#{@customfield_name_to_id[k]}".to_sym][:name] = user_name
+        fields[k.to_sym] = { name: user_name }
       end
     elsif type == 'Date Time'
       # Assembla custom fields of type "Date Time" have format: "YYYY-MM-DD hh:mm:ss" but they need to be
@@ -335,9 +330,9 @@ def create_ticket_jira(ticket, counter, total)
         value = "#{value}:00"
         value = value.sub(' ', 'T') + '.000Z'
       end
-      payload[:fields]["#{@customfield_name_to_id[k]}".to_sym] = value
+      fields[k] = value
     else
-      payload[:fields]["#{@customfield_name_to_id[k]}".to_sym] = value
+      fields[k] = value
     end
     # puts "#{counter}: type='#{type}', key='#{k}', value='#{value}'"
   end
@@ -345,14 +340,13 @@ def create_ticket_jira(ticket, counter, total)
   case issue_type[:name]
   when 'epic'
     epic_name = (summary =~ /^epic: /i ? summary[6..-1] : summary)
-    payload[:fields]["#{@customfield_name_to_id['Epic Name']}".to_sym] = epic_name
+    fields['Epic Name'] = epic_name
   when 'story'
-    payload[:fields]["#{@customfield_name_to_id['Story Points']}".to_sym] = story_points.to_i unless story_points == '0'
+    fields['Story Points'] = story_points.to_i unless story_points == '0'
   when 'sub-task'
     parent_issue = get_parent_issue(ticket)
     unless parent_issue.nil?
-      payload[:fields][:parent] = {}
-      payload[:fields][:parent][:id] = parent_issue[:jira_ticket_id]
+      fields[:parent] = { id: parent_issue[:jira_ticket_id] }
     end
   end
 
@@ -362,6 +356,10 @@ def create_ticket_jira(ticket, counter, total)
   ok = false
   retries = 0
   begin
+    fields_payload = @customfield_name_to_id.each_with_object(fields.compact) do |(name, id), h|
+      h[id.to_sym] = h.delete(name) if h[name] # transform_keys
+    end
+    payload = { create: {}, fields: fields_payload }
     response = RestClient::Request.execute(method: :post, url: URL_JIRA_ISSUES, payload: payload.to_json, headers: JIRA_HEADERS_ADMIN)
     body = JSON.parse(response.body)
     jira_ticket_id = body['id']
@@ -402,15 +400,15 @@ def create_ticket_jira(ticket, counter, total)
           when /can't exceed 255 characters/
             # Truncate the summary below limit.
             max = 255
-            payload[:fields][:summary] = "#{payload[:fields][:summary][0...max - 3]}..."
-            puts "Truncated summary at #{max} characters to '#{payload[:fields][:summary]}'"
+            fields[:summary] = "#{fields[:summary][0...max - 3]}..."
+            puts "Truncated summary at #{max} characters to '#{fields[:summary]}'"
             recover = true
           end
         when 'assignee'
           case reason
           when /cannot be assigned issues/i
-            # payload[:fields]["#{@customfield_name_to_id['Assembla-Assignee']}".to_sym] = payload[:fields][:assignee][:name]
-            payload[:fields][:assignee][:id] = JIRA_API_LEAD_ACCOUNT_ID
+            # fields['Assembla-Assignee'] = fields[:assignee][:name]
+            fields[:assignee][:id] = JIRA_API_LEAD_ACCOUNT_ID
             puts "Cannot be assigned issues: #{assignee_name}, changed to JIRA_API_LEAD_ACCOUNT_ID='#{JIRA_API_LEAD_ACCOUNT_ID}'"
             @cannot_be_assigned_issues << assignee_name unless @cannot_be_assigned_issues.include?(assignee_name)
             recover = true
@@ -418,13 +416,13 @@ def create_ticket_jira(ticket, counter, total)
         when 'reporter'
           case reason
           when /cannot be set/i
-            payload[:fields].delete(:reporter)
+            fields.delete(:reporter)
             puts "Removed reporter '#{reporter_name}' from issue"
             recover = true
           when /is not a user/i
-            payload[:fields]["#{@customfield_name_to_id['Assembla-Reporter']}".to_sym] = payload[:fields][:reporter][:name]
-            # payload[:fields][:reporter][:name] = JIRA_API_UNKNOWN_USER
-            payload[:fields][:reporter][:id] = JIRA_API_LEAD_ACCOUNT_ID
+            fields['Assembla-Reporter'] = fields[:reporter][:name]
+            # fields[:reporter][:name] = JIRA_API_UNKNOWN_USER
+            fields[:reporter][:id] = JIRA_API_LEAD_ACCOUNT_ID
             puts "Is not a user: #{reporter_name}"
             @is_not_a_user << reporter_name unless @is_not_a_user.include?(reporter_name)
             recover = true
@@ -436,14 +434,14 @@ def create_ticket_jira(ticket, counter, total)
               id: @issue_type_name_to_id['task'],
               name: 'task'
             }
-            payload[:fields][:issuetype][:id] = issue_type[:id]
-            payload[:fields].delete(:parent)
+            fields[:issuetype][:id] = issue_type[:id]
+            fields.delete(:parent)
             recover = true
           end
         when 'parent'
           case reason
           when /could not find issue by id or key/i
-            payload[:fields].delete(:parent)
+            fields.delete(:parent)
             recover = true
           end
         when /customfield_/
