@@ -67,6 +67,7 @@ end
 
 attachments_jira_csv = "#{OUTPUT_DIR_JIRA}/jira-attachments-download.csv"
 
+header = true
 @completed = 0
 @skip_remaining = true
 puts "SKIP to ticket #{@startAt}" if @startAt > 1
@@ -126,7 +127,8 @@ puts "SKIP to ticket #{@startAt}" if @startAt > 1
       filename: filename,
       content_type: content_type
     }
-    write_csv_file_append(attachments_jira_csv, [attachment], counter == 1)
+    write_csv_file_append(attachments_jira_csv, [attachment], header)
+    header = false
   rescue RestClient::ExceptionWithResponse => e
     rest_client_exception(e, 'GET', url)
   end
