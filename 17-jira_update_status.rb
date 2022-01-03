@@ -13,6 +13,7 @@ JIRA_API_STATUSES.split(',').each do |status|
   else
     @assembla_status_to_jira[status] = status
   end
+  @jira_initial_status ||= to
 end
 
 puts "\nAssembla status => Jira status"
@@ -171,8 +172,8 @@ def jira_update_status(issue_id, assembla_status, counter)
     }.to_json
     transition = {
       from: {
-        id: jira_get_status_id('To Do'),
-        name: 'To Do'
+        id: jira_get_status_id(@jira_initial_status),
+        name: @jira_initial_status
       },
       to: {
         id: jira_get_status_id('Done'),
@@ -183,12 +184,12 @@ def jira_update_status(issue_id, assembla_status, counter)
     # Do nothing
     transition = {
       from: {
-        id: jira_get_status_id('To Do'),
-        name: 'To Do'
+        id: jira_get_status_id(@jira_initial_status),
+        name: @jira_initial_status
       },
       to: {
-        id: jira_get_status_id('To Do'),
-        name: 'To Do'
+        id: jira_get_status_id(@jira_initial_status),
+        name: @jira_initial_status
       }
     }
     return { transition: transition }
@@ -201,8 +202,8 @@ def jira_update_status(issue_id, assembla_status, counter)
     }.to_json
     transition = {
       from: {
-        id: jira_get_status_id('To Do'),
-        name: 'To Do'
+        id: jira_get_status_id(@jira_initial_status),
+        name: @jira_initial_status
       },
       to: {
         id: jira_get_status_id('In Progress'),
@@ -220,8 +221,8 @@ def jira_update_status(issue_id, assembla_status, counter)
     }.to_json
     transition = {
       from: {
-        id: jira_get_status_id('To Do'),
-        name: 'To Do'
+        id: jira_get_status_id(@jira_initial_status),
+        name: @jira_initial_status
       },
       to: {
         id: jira_get_status_id(jira_status),
@@ -239,11 +240,11 @@ def jira_update_status(issue_id, assembla_status, counter)
   url = "#{URL_JIRA_ISSUES}/#{issue_id}/transitions"
 
   percentage = ((counter * 100) / @total_assembla_tickets).round.to_s.rjust(3)
-  # By default all created issues start with a status of 'To Do', so if the transition
-  # is to 'To Do' we just skip it.
+  # By default all created issues start with a status of @jira_initial_status, so if the transition
+  # is to @jira_initial_status we just skip it.
   #
-  if transition[:to][:name].casecmp('To Do').zero?
-    puts "#{percentage}% [#{counter}|#{@total_assembla_tickets}] transition 'To Do' => SKIP"
+  if transition[:to][:name].casecmp(@jira_initial_status).zero?
+    puts "#{percentage}% [#{counter}|#{@total_assembla_tickets}] transition '#{@jira_initial_status}' => SKIP"
     return { transition: transition }
   end
 
