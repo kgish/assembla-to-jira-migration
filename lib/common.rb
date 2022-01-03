@@ -9,8 +9,8 @@ require 'base64'
 require 'date'
 
 version = File.read(".ruby-version")
-unless RUBY_VERSION == version
-  puts "Ruby version = '#{version}' is required, run the following command first:"
+unless RUBY_VERSION.start_with?(version)
+  puts "Ruby version = '#{version}' is required, got #{RUBY_VERSION} run the following command first:"
   puts "rvm use #{version}"
   exit
 end
