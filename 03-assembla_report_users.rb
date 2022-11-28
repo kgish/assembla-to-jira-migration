@@ -95,9 +95,15 @@ FILES.each do |file|
         @num_unknowns += 1
         h = {}
         h['id'] = user_id
-        h['login'] = "unknown-#{@num_unknowns}"
-        h['name'] = "Unknown ##{@num_unknowns}"
-        h['email'] = "unknown-#{@num_unknowns}@#{JIRA_API_DEFAULT_EMAIL}"
+        if JIRA_API_UNKNOWN_USER_CONSOLIDATE
+            h['login'] = "unknown"
+            h['name'] = "Unknown"
+            h['email'] = "unknown@#{JIRA_API_DEFAULT_EMAIL}"
+        else
+            h['login'] = "unknown-#{@num_unknowns}"
+            h['name'] = "Unknown ##{@num_unknowns}"
+            h['email'] = "unknown-#{@num_unknowns}@#{JIRA_API_DEFAULT_EMAIL}"
+        end
         user_index = create_user_index(h)
       end
       user_index['count'] += 1
