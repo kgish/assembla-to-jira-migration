@@ -187,6 +187,31 @@ def jira_update_sprint_state(sprint, state)
   result
 end
 
+def jira_close_sprint(sprint, milestone)
+  result = nil
+  if milestone['is_completed'].to_s.downcase == "true"
+    name = sprint['name']
+    url = "#{URL_JIRA_SPRINTS}/#{sprint['id']}"
+    payload = {
+      state: 'closed'
+    }.to_json
+    # https://developer.atlassian.com/cloud/jira/software/rest/api-group-sprint/#api-rest-agile-1-0-sprint-sprintid-post
+    # A sprint can be completed by updating the state to 'closed'. This action requires the sprint to be in the 'active' state. 
+    # This sets the completeDate to the time of the request.
+    # The completeDate field cannot be updated manually.
+    begin
+      RestClient::Request.execute(method: :post, url: url, payload: payload, headers: JIRA_HEADERS_ADMIN)
+      puts "POST #{url} name='#{name}', payload='#{payload}' => OK"
+      result = true
+    rescue RestClient::ExceptionWithResponse => e
+      rest_client_exception(e, 'POST', url, payload)
+    rescue => e
+      puts "POST #{url} name='#{name}', payload='#{payload}' => NOK (#{e.message})"
+    end
+  end
+  result
+end
+
 project = @projects_jira.detect { |p| p['name'] == JIRA_API_PROJECT_NAME }
 goodbye("Cannot find project with name='#{JIRA_API_PROJECT_NAME}'") unless project
 
@@ -208,12 +233,9 @@ goodbye("Cannot find project with name='#{JIRA_API_PROJECT_NAME}'") unless proje
     jira_update_sprint_state(next_sprint, 'active')
     jira_move_issues_to_sprint(next_sprint, @tickets_sprint_slice)
   end
+  jira_close_sprint(next_sprint, sprint)
   @jira_sprints << next_sprint.merge(issues: issues.join(',')).merge(assembla_id: sprint['id'])
 end
-
-# First sprint should be 'active' and the other 'closed'
-# For a dry-run, comment out the following line
-jira_update_sprint_state(@jira_sprints.first, 'active') if @jira_sprints.length > 0
 
 puts "\nTotal updates: #{@jira_sprints.length}"
 sprints_jira_csv = "#{OUTPUT_DIR_JIRA}/jira-sprints.csv"
