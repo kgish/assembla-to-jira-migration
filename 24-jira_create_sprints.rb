@@ -21,7 +21,7 @@ tickets_jira_csv = "#{OUTPUT_DIR_JIRA}/jira-tickets.csv"
 # completed_date,updated_at,updated_by,release_level,release_notes,planner_type,pretty_release_level
 @milestones_assembla.each do |milestone|
   puts "* #{milestone['id']} #{milestone['title']} (#{MILESTONE_PLANNER_TYPES[milestone['planner_type'].to_i]})" \
-       " => #{milestone['is_completed'] ? '' : 'not'} completed"
+       " => #{milestone['is_completed'].to_s.downcase == "true" ? '' : 'not'} completed"
 end
 puts
 
