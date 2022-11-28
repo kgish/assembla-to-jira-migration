@@ -103,12 +103,12 @@ puts "SKIP to ticket #{@startAt}" if @startAt > 1
   nr = 0
   while File.exist?(filepath)
     nr += 1
-    goodbye("Failed for filepath='#{filepath}', nr=#{nr}") if nr > 9999
+    goodbye("Failed for filepath='#{filepath}', nr=#{nr}") if nr > 999999
     extname = File.extname(filepath)
     basename = File.basename(filepath, extname)
     dirname = File.dirname(filepath)
-    basename = basename.sub(/\.\d{4}$/, '')
-    filename = "#{basename}.#{nr.to_s.rjust(4, '0')}#{extname}"
+    basename = basename.sub(/\.\d{6}$/, '')
+    filename = "#{basename}.#{nr.to_s.rjust(6, '0')}#{extname}"
     filepath = "#{dirname}/#{filename}"
   end
 
