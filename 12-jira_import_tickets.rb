@@ -101,6 +101,23 @@ puts "Inactive Jira users: #{@inactive_jira_users.length}"
   puts "* #{name}"
 end
 
+@jira_translate_priorities = {}
+if defined?(JIRA_API_PRIORITIES)
+  JIRA_API_PRIORITIES.split(',').each do |priority|
+    if priority.index(':')
+      m = /^(.*):(.*)$/.match(priority)
+      from = m[1]
+      to = m[2]
+      @jira_translate_priorities[from] = to
+    end
+  end
+end
+
+puts "\nAssembla priority => Jira priority"
+@jira_translate_priorities.keys.each do |key|
+  puts "* #{key} => #{@jira_translate_priorities[key]}"
+end
+
 # This is populated as the tickets are created.
 @assembla_number_to_jira_key = {}
 
@@ -177,7 +194,12 @@ def create_ticket_jira(ticket, counter, total)
   due_date = ticket['due_date']
   reporter_id = ticket['reporter_id']
   assigned_to_id = ticket['assigned_to_id']
-  priority = ticket['priority']
+  if @jira_translate_priorities[ticket['priority']]
+    priority = @jira_translate_priorities[ticket['priority']]
+    puts "Translated priority #{ticket['priority']} to #{@jira_translate_priorities[ticket['priority']]}"
+  else 
+    priority = ticket['priority']
+  end
   reporter_name = @a_user_id_to_j_user_name[reporter_id]
   jira_reporter_id = @a_user_id_to_j_issue_id[reporter_id]
   if reporter_name.nil?

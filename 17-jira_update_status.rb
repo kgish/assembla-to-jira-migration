@@ -15,9 +15,26 @@ JIRA_API_STATUSES.split(',').each do |status|
   end
 end
 
+@jira_status_to_resolution = {}
+if defined?(JIRA_API_RESOLUTIONS)
+  JIRA_API_RESOLUTIONS.split(',').each do |status|
+    if status.index(':')
+      m = /^(.*):(.*)$/.match(status)
+      from = m[1]
+      to = m[2]
+      @jira_status_to_resolution[from] = to
+    end
+  end
+end
+
 puts "\nAssembla status => Jira status"
 @assembla_status_to_jira.keys.each do |key|
   puts "* #{key} => #{@assembla_status_to_jira[key]}"
+end
+
+puts "\nJira status => Jira resolution"
+@jira_status_to_resolution.keys.each do |key|
+  puts "* #{key} => #{@jira_status_to_resolution[key]}"
 end
 
 def jira_get_status_from_assembla(assembla_status)
@@ -257,9 +274,10 @@ def jira_update_status(issue_id, assembla_status, counter)
     puts "#{percentage}% [#{counter}|#{@total_assembla_tickets}] POST #{url} #{payload.inspect} => NOK (#{e.message})"
   end
   if result
-    # If the issue has been closed (Done) we set the resolution to the appropriate value
-    if assembla_status.casecmp('Done').zero? || assembla_status.casecmp('invalid').zero?
-      resolution_name = assembla_status.casecmp('invalid').zero? ? "Won't do" : 'Done'
+    # If the issue has a status with a resolution we set the resolution to the appropriate value
+    jira_status = jira_get_status_from_assembla(assembla_status)
+    resolution_name = @jira_status_to_resolution[jira_status]
+    if resolution_name
       resolution_id = @jira_resolution_name_to_id[resolution_name].to_i
       unless resolution_id == '0'
         payload = {
@@ -273,6 +291,7 @@ def jira_update_status(issue_id, assembla_status, counter)
         url = "#{URL_JIRA_ISSUES}/#{issue_id}?notifyUsers=false"
         begin
           RestClient::Request.execute(method: :put, url: url, payload: payload, headers: headers)
+          puts "PUT #{url} resolution='#{resolution_name}' => OK"
         rescue RestClient::ExceptionWithResponse => e
           rest_client_exception(e, 'PUT', url, payload)
         rescue => e
